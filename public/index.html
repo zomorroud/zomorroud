@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Day-Trader</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Day-Trader <span class="tag">paper trading</span></h1>
+    <div id="status" class="status">connecting…</div>
+  </header>
+
+  <section class="stats" id="stats"></section>
+  <div id="banner" class="banner hidden"></div>
+
+  <main>
+    <section class="panel">
+      <h2>Watchlist</h2>
+      <table id="watchlist">
+        <thead><tr><th>Symbol</th><th>Last</th><th>Chg %</th><th>RSI</th><th>Bot</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel chart-panel">
+      <h2 id="chart-title">Chart</h2>
+      <canvas id="chart" height="260"></canvas>
+      <div class="legend"><span class="l-price">Price</span><span class="l-fast">SMA fast</span><span class="l-slow">SMA slow</span></div>
+      <form id="ticket" class="ticket">
+        <input id="qty" type="number" min="1" step="1" value="100" aria-label="Quantity">
+        <button type="button" data-side="buy" class="buy">Buy</button>
+        <button type="button" data-side="sell" class="sell">Sell</button>
+        <button type="button" id="flatten" class="ghost">Flatten all</button>
+        <button type="button" id="reset" class="ghost">Reset</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Positions</h2>
+      <table id="positions">
+        <thead><tr><th>Symbol</th><th>Qty</th><th>Avg</th><th>Last</th><th>Unrealized</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Trades</h2>
+      <table id="trades">
+        <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>P&amp;L</th><th>Src</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

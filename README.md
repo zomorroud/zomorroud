@@ -47,4 +47,21 @@ Environment variables:
 
 **Netlify:** `netlify.toml` runs `npm run build` and publishes `public/`. The app runs entirely in the browser, and each visitor gets their own simulated market and account.
 
-**Azure:** `.github/workflows/azure.yml` deploys to Azure App Service when a release is created. Before you use it, set `AZURE_WEBAPP_NAME` and add the `AZURE_WEBAPP_PUBLISH_PROFILE` secret.
+**Azure:** `.github/workflows/azure.yml` tests the app and deploys it to the App Service web app `day-trader` on every push to `main`. You can also run it by hand from the Actions tab. On Azure the Node server runs, so all visitors share one market and account.
+
+### Deploy to Azure
+
+You only need to do this once.
+
+1. In the [Azure portal](https://portal.azure.com), create a **Web App** with these settings:
+   - **Name:** `day-trader`. If the name is taken, pick another and change `AZURE_WEBAPP_NAME` in the workflow to match.
+   - **Publish:** Code
+   - **Runtime stack:** Node 20 LTS
+   - **Operating system:** Linux
+   - **Pricing plan:** any. Free F1 works for trying it out.
+2. Open the web app. Under **Settings → Environment variables** (called **Configuration** in some versions of the portal), add the app setting `WEBSITE_WEBDEPLOY_USE_SCM` = `true` and save.
+3. On the web app's **Overview** page, click **Download publish profile**. If that button is disabled, go to **Settings → Configuration → General settings**, turn on **SCM Basic Auth Publishing Credentials**, save, and try again.
+4. In GitHub, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `AZURE_WEBAPP_PUBLISH_PROFILE` and paste in the whole contents of the downloaded file.
+5. Go to **Actions → the Azure workflow → Run workflow**, or push to `main`. Once it finishes, the app is live at `https://day-trader.azurewebsites.net`.
+
+Until the secret exists, the workflow still runs the tests but skips the deploy with a warning. Azure starts the app with `npm start`, which builds the browser bundle and serves on the `PORT` that Azure provides. To change the loss limit or tick speed, set `MAX_DAILY_LOSS` or `TICK_MS` as app settings.

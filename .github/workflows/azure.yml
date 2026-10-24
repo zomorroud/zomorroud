@@ -1,50 +1,52 @@
-# This workflow will build and push a node.js application to an Azure Web App when a release is created.
+# Tests Day-Trader and deploys it to Azure App Service on every push to main.
+# It can also be run by hand from the Actions tab ("Run workflow").
 #
-# This workflow assumes you have already created the target Azure App Service web app.
-# For instructions see https://docs.microsoft.com/azure/app-service/app-service-plan-manage#create-an-app-service-plan
+# One-time setup (see README.md, "Deploy to Azure"):
 #
-# To configure this workflow:
+# 1. Create a Linux App Service web app named AZURE_WEBAPP_NAME (below) with
+#    the Node 20 LTS runtime.
+# 2. In the web app's Configuration, add the app setting
+#    WEBSITE_WEBDEPLOY_USE_SCM = true, then download its publish profile.
+# 3. Add the publish profile's contents as the repository secret
+#    AZURE_WEBAPP_PUBLISH_PROFILE.
 #
-# 1. For Linux apps, add an app setting called WEBSITE_WEBDEPLOY_USE_SCM and set it to true in your app **before downloading the file**.
-#      For more instructions see: https://docs.microsoft.com/azure/app-service/configure-common#configure-app-settings
-#
-# 2. Set up a secret in your repository named AZURE_WEBAPP_PUBLISH_PROFILE with the value of your Azure publish profile.
-#    For instructions on obtaining the publish profile see: https://docs.microsoft.com/azure/app-service/deploy-github-actions#configure-the-github-secret
-#
-# 3. Change the values for the AZURE_WEBAPP_NAME, AZURE_WEBAPP_PACKAGE_PATH and NODE_VERSION environment variables  (below).
-#
-# For more information on GitHub Actions for Azure, refer to https://github.com/Azure/Actions
-# For more samples to get started with GitHub Action workflows to deploy to Azure, refer to https://github.com/Azure/actions-workflow-samples
+# Until that secret exists, the workflow still runs the tests but skips the
+# deploy step with a warning.
 on:
-  release:
-    types: [created]
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: your-app-name    # set this to your application's name
-  AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
-  NODE_VERSION: '20.x'                # set this to the node version to use
+  AZURE_WEBAPP_NAME: day-trader       # the web app's name (<name>.azurewebsites.net)
+  AZURE_WEBAPP_PACKAGE_PATH: '.'      # path to the app, relative to the repository root
+  NODE_VERSION: '20.x'                # keep in line with the web app's runtime
 
 jobs:
   build-and-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
     environment: production
+    env:
+      PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ env.NODE_VERSION }}
-      uses: actions/setup-node@v2
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ env.NODE_VERSION }}
     - name: npm install, build, and test
       run: |
-        # Build and test the project, then
-        # deploy to Azure Web App.
         npm install
         npm run build --if-present
-        npm run test --if-present
-    - name: 'Deploy to Azure WebApp'
-      uses: azure/webapps-deploy@v2
+        npm test
+    - name: Skip deploy (publish profile not configured)
+      if: env.PUBLISH_PROFILE == ''
+      run: echo "::warning::AZURE_WEBAPP_PUBLISH_PROFILE secret is not set, so the deploy was skipped. See README.md, 'Deploy to Azure'."
+    - name: Deploy to Azure WebApp
+      if: env.PUBLISH_PROFILE != ''
+      uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        publish-profile: ${{ env.PUBLISH_PROFILE }}
         package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

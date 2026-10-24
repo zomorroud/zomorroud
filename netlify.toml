@@ -1,0 +1,8 @@
+# Netlify serves static files only, so the dashboard runs the simulation
+# in the browser using the bundle built from src/.
+[build]
+  command = "npm run build"
+  publish = "public"
+
+[build.environment]
+  NODE_VERSION = "20"

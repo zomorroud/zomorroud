@@ -5,6 +5,8 @@
   "main": "src/server.js",
   "private": true,
   "scripts": {
+    "build": "node scripts/build-web.js",
+    "prestart": "npm run build",
     "start": "node src/server.js",
     "test": "node --test"
   },

@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = (sel) => document.querySelector(sel);
-const fmt = (n) => (n == null ? '—' : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const fmt = (n) => (n == null ? '—' : (n + 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const cls = (n) => (n > 0 ? 'up' : n < 0 ? 'down' : '');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -9,7 +9,11 @@ let state = null;
 let selected = null;
 const history = {};
 
-async function api(method, url, body) {
+// Set by connect(): talks to the Node server, or to an in-browser engine
+// when no server is available (static hosting such as Netlify).
+let api = null;
+
+async function serverApi(method, url, body) {
   const res = await fetch(url, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -18,6 +22,28 @@ async function api(method, url, body) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
+}
+
+// Mirrors the server's routes against an Engine running in this page.
+function createLocalApi(engine, warnings) {
+  const snapshot = () => ({ ...engine.snapshot(), warnings });
+  return async (method, url, body = {}) => {
+    const [, , resource, symbol] = url.split('/');
+    if (method === 'GET' && resource === 'state') return snapshot();
+    if (method === 'GET' && resource === 'history') return engine.market.history(symbol);
+    if (method === 'POST' && resource === 'orders') return engine.placeOrder({ ...body, qty: Number(body.qty) });
+    if (method === 'POST' && resource === 'bots') {
+      engine.setBot(symbol, Boolean(body.enabled));
+      return { botsEnabled: [...engine.botsEnabled] };
+    }
+    if (method === 'POST' && resource === 'flatten') return engine.flatten();
+    if (method === 'POST' && resource === 'reset') {
+      engine.reset();
+      warnings.length = 0;
+      return snapshot();
+    }
+    throw new Error('Not found');
+  };
 }
 
 function sma(values, period, i) {
@@ -184,7 +210,37 @@ $('#flatten').addEventListener('click', () => act(() => api('POST', '/api/flatte
 $('#reset').addEventListener('click', () => act(async () => onSnapshot({ ...(await api('POST', '/api/reset')), warnings: [] })));
 window.addEventListener('resize', () => state && drawChart());
 
-const stream = new EventSource('/api/stream');
-stream.onopen = () => ($('#status').textContent = 'live');
-stream.onerror = () => ($('#status').textContent = 'reconnecting…');
-stream.onmessage = (e) => onSnapshot(JSON.parse(e.data));
+function connectServer() {
+  api = serverApi;
+  const stream = new EventSource('/api/stream');
+  stream.onopen = () => ($('#status').textContent = 'live');
+  stream.onerror = () => ($('#status').textContent = 'reconnecting…');
+  stream.onmessage = (e) => onSnapshot(JSON.parse(e.data));
+}
+
+function connectLocal() {
+  const engine = new window.DayTrader.Engine();
+  const warnings = [];
+  engine.on('warning', (message) => {
+    warnings.push({ time: Date.now(), message });
+    if (warnings.length > 20) warnings.shift();
+  });
+  // Warm up the market so the chart and indicators have data straight away.
+  for (let i = 0; i < 120; i++) engine.market.tick();
+  api = createLocalApi(engine, warnings);
+  $('#status').textContent = 'live · simulated in your browser';
+  onSnapshot({ ...engine.snapshot(), warnings });
+  setInterval(() => onSnapshot({ ...engine.tick(), warnings }), 1000);
+}
+
+async function connect() {
+  try {
+    const res = await fetch('/api/state');
+    if (res.ok && (res.headers.get('content-type') || '').includes('application/json')) return connectServer();
+  } catch {
+    // No server reachable: fall through to the in-browser engine.
+  }
+  connectLocal();
+}
+
+connect();

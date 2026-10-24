@@ -13,11 +13,14 @@ A paper-trading day-trader simulator with a live web dashboard. No real money is
 
 There are no runtime dependencies. You only need Node.js 18 or newer.
 
+The dashboard works in two modes. When the Node server is running, it streams from the server. When there is no server, as on static hosting such as Netlify, it runs the same simulation code in the browser. `npm run build` bundles `src/` into `public/engine.js` for that mode.
+
 ## Run
 
 ```bash
-npm start          # http://localhost:3000
+npm start          # builds, then serves http://localhost:3000
 npm test
+npm run build      # browser bundle only (public/engine.js)
 ```
 
 Environment variables:
@@ -42,4 +45,6 @@ Environment variables:
 
 ## Deploy
 
-`.github/workflows/azure.yml` deploys to Azure App Service when a release is created. Before you use it, set `AZURE_WEBAPP_NAME` and add the `AZURE_WEBAPP_PUBLISH_PROFILE` secret.
+**Netlify:** `netlify.toml` runs `npm run build` and publishes `public/`. The app runs entirely in the browser, and each visitor gets their own simulated market and account.
+
+**Azure:** `.github/workflows/azure.yml` deploys to Azure App Service when a release is created. Before you use it, set `AZURE_WEBAPP_NAME` and add the `AZURE_WEBAPP_PUBLISH_PROFILE` secret.
